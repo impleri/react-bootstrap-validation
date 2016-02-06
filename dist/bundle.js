@@ -188,12 +188,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        value: function getChildContext() {
 	            return {
 	                Validator: {
+	                    getValue: this._getValue.bind(this),
 	                    hasError: this._hasError.bind(this),
-	                    getDefaultValue: this._getCurrentValue.bind(this),
 	                    registerInput: this.registerInput.bind(this),
+	                    unregisterInput: this.unregisterInput.bind(this),
+	                    updateInput: this._updateInput.bind(this),
 	                    validateInput: this._validateInput.bind(this),
-	                    validationEvent: this.props.validationEvent,
-	                    unregisterInput: this.unregisterInput.bind(this)
+	                    validationEvent: this.props.validationEvent
 	                }
 	            };
 	        }
@@ -206,14 +207,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	            this._values = {};
 	        }
 	    }, {
+	        key: 'getValues',
+	        value: function getValues() {
+	            var _this = this;
+	
+	            return _Object$keys(this._inputs).reduce(function (values, name) {
+	                values[name] = _this._getValue(name);
+	
+	                return values;
+	            }, {});
+	        }
+	    }, {
 	        key: 'registerInput',
 	        value: function registerInput(input) {
 	            _get(Object.getPrototypeOf(Form.prototype), 'registerInput', this).call(this, input);
 	
 	            if (typeof input.props.validate === 'string') {
 	                this._validators[input.props.name] = this._compileValidationRules(input, input.props.validate);
-	                this._values[input.props.name] = this._getCurrentValue(input.props.name);
+	                this._values[input.props.name] = this._getValue(input.props.name);
 	            }
+	        }
+	    }, {
+	        key: 'submit',
+	        value: function submit() {
+	            this._handleSubmit();
 	        }
 	    }, {
 	        key: 'unregisterInput',
@@ -234,40 +251,85 @@ return /******/ (function(modules) { // webpackBootstrap
 	            );
 	        }
 	    }, {
-	        key: '_getCurrentValue',
-	        value: function _getCurrentValue(name) {
-	            var value = undefined;
-	            if (name in this.props.model) {
-	                value = this.props.model[name];
+	        key: '_compileValidationRules',
+	        value: function _compileValidationRules(input, ruleProp) {
+	            var _this2 = this;
+	
+	            var rules = ruleProp.split(',').map(function (rule) {
+	                var params = rule.split(':');
+	                var name = params.shift();
+	                var inverse = name[0] === '!';
+	
+	                if (inverse) {
+	                    name = name.substr(1);
+	                }
+	
+	                return { name: name, inverse: inverse, params: params };
+	            });
+	
+	            var validator = (input.props && input.props.type) === 'file' ? _FileValidator2['default'] : _Validator2['default'];
+	
+	            return function (val) {
+	                var result = true;
+	
+	                rules.forEach(function (rule) {
+	                    if (typeof validator[rule.name] !== 'function') {
+	                        throw new Error('Invalid input validation rule "' + rule.name + '"');
+	                    }
+	
+	                    var ruleResult = validator[rule.name].apply(validator, [val].concat(_toConsumableArray(rule.params)));
+	
+	                    if (rule.inverse) {
+	                        ruleResult = !ruleResult;
+	                    }
+	
+	                    if (result === true && ruleResult !== true) {
+	                        result = getInputErrorMessage(input, rule.name) || getInputErrorMessage(_this2, rule.name) || false;
+	                    }
+	                });
+	
+	                return result;
+	            };
+	        }
+	    }, {
+	        key: '_getValue',
+	        value: function _getValue(iptName) {
+	            var input = this._inputs[iptName],
+	                value = undefined;
+	
+	            if (Array.isArray(input)) {
+	                console.warn('Multiple inputs use the same name "' + iptName + '"');
+	
+	                return null;
 	            }
 	
-	            if (this._values[name]) {
-	                value = this._values[name];
+	            if (iptName in this.props.model) {
+	                value = this.props.model[iptName];
+	            }
+	
+	            if (this._values[iptName]) {
+	                value = this._values[iptName];
 	            }
 	
 	            return value;
 	        }
 	    }, {
-	        key: 'getValues',
-	        value: function getValues() {
-	            var _this = this;
+	        key: '_handleSubmit',
+	        value: function _handleSubmit(e) {
+	            if (e) {
+	                e.preventDefault();
+	            }
 	
-	            return _Object$keys(this._inputs).reduce(function (values, name) {
-	                values[name] = _this._getValue(name);
+	            var _validateAll2 = this._validateAll(this._values);
 	
-	                return values;
-	            }, {});
-	        }
-	    }, {
-	        key: 'submit',
-	        value: function submit() {
-	            this._handleSubmit();
-	        }
-	    }, {
-	        key: '_validateInput',
-	        value: function _validateInput(name, value) {
-	            this._values[name] = value;
-	            this._validateOne(name, this._values);
+	            var isValid = _validateAll2.isValid;
+	            var errors = _validateAll2.errors;
+	
+	            if (isValid) {
+	                this.props.onValidSubmit(this._values);
+	            } else {
+	                this.props.onInvalidSubmit(errors, this._values);
+	            }
 	        }
 	    }, {
 	        key: '_hasError',
@@ -285,6 +347,52 @@ return /******/ (function(modules) { // webpackBootstrap
 	            this.setState({
 	                invalidInputs: _Object$assign2(this.state.invalidInputs, _defineProperty({}, iptName, isError ? errText || true : false))
 	            });
+	        }
+	    }, {
+	        key: '_updateInput',
+	        value: function _updateInput(name, value) {
+	            this._values[name] = value;
+	        }
+	    }, {
+	        key: '_validateAll',
+	        value: function _validateAll(context) {
+	            var _this3 = this;
+	
+	            var isValid = true;
+	            var errors = [];
+	
+	            if (typeof this.props.validateAll === 'function') {
+	                (function () {
+	                    var result = _this3.props.validateAll(context);
+	
+	                    if (result !== true) {
+	                        isValid = false;
+	
+	                        _Object$keys(result).forEach(function (iptName) {
+	                            errors.push(iptName);
+	
+	                            _this3._setError(iptName, true, result[iptName]);
+	                        });
+	                    }
+	                })();
+	            } else {
+	                _Object$keys(this._inputs).forEach(function (iptName) {
+	                    if (!_this3._validateOne(iptName, context)) {
+	                        isValid = false;
+	                        errors.push(iptName);
+	                    }
+	                });
+	            }
+	
+	            return {
+	                isValid: isValid,
+	                errors: errors
+	            };
+	        }
+	    }, {
+	        key: '_validateInput',
+	        value: function _validateInput(name) {
+	            this._validateOne(name, this._values);
 	        }
 	    }, {
 	        key: '_validateOne',
@@ -326,116 +434,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	            this._setError(iptName, !isValid, error);
 	
 	            return isValid;
-	        }
-	    }, {
-	        key: '_validateAll',
-	        value: function _validateAll(context) {
-	            var _this2 = this;
-	
-	            var isValid = true;
-	            var errors = [];
-	
-	            if (typeof this.props.validateAll === 'function') {
-	                (function () {
-	                    var result = _this2.props.validateAll(context);
-	
-	                    if (result !== true) {
-	                        isValid = false;
-	
-	                        _Object$keys(result).forEach(function (iptName) {
-	                            errors.push(iptName);
-	
-	                            _this2._setError(iptName, true, result[iptName]);
-	                        });
-	                    }
-	                })();
-	            } else {
-	                _Object$keys(this._inputs).forEach(function (iptName) {
-	                    if (!_this2._validateOne(iptName, context)) {
-	                        isValid = false;
-	                        errors.push(iptName);
-	                    }
-	                });
-	            }
-	
-	            return {
-	                isValid: isValid,
-	                errors: errors
-	            };
-	        }
-	    }, {
-	        key: '_compileValidationRules',
-	        value: function _compileValidationRules(input, ruleProp) {
-	            var _this3 = this;
-	
-	            var rules = ruleProp.split(',').map(function (rule) {
-	                var params = rule.split(':');
-	                var name = params.shift();
-	                var inverse = name[0] === '!';
-	
-	                if (inverse) {
-	                    name = name.substr(1);
-	                }
-	
-	                return { name: name, inverse: inverse, params: params };
-	            });
-	
-	            var validator = (input.props && input.props.type) === 'file' ? _FileValidator2['default'] : _Validator2['default'];
-	
-	            return function (val) {
-	                var result = true;
-	
-	                rules.forEach(function (rule) {
-	                    if (typeof validator[rule.name] !== 'function') {
-	                        throw new Error('Invalid input validation rule "' + rule.name + '"');
-	                    }
-	
-	                    var ruleResult = validator[rule.name].apply(validator, [val].concat(_toConsumableArray(rule.params)));
-	
-	                    if (rule.inverse) {
-	                        ruleResult = !ruleResult;
-	                    }
-	
-	                    if (result === true && ruleResult !== true) {
-	                        result = getInputErrorMessage(input, rule.name) || getInputErrorMessage(_this3, rule.name) || false;
-	                    }
-	                });
-	
-	                return result;
-	            };
-	        }
-	    }, {
-	        key: '_getValue',
-	        value: function _getValue(iptName) {
-	            var input = this._inputs[iptName];
-	
-	            if (Array.isArray(input)) {
-	                console.warn('Multiple inputs use the same name "' + iptName + '"');
-	
-	                return false;
-	            }
-	
-	            return this._values[iptName];
-	        }
-	    }, {
-	        key: '_handleSubmit',
-	        value: function _handleSubmit(e) {
-	            if (e) {
-	                e.preventDefault();
-	            }
-	
-	            // let values = this.getValues();
-	
-	            var _validateAll2 = this._validateAll(this._values);
-	
-	            var isValid = _validateAll2.isValid;
-	            var errors = _validateAll2.errors;
-	
-	            if (isValid) {
-	                this.props.onValidSubmit(this._values);
-	            } else {
-	                this.props.onInvalidSubmit(errors, this._values);
-	            }
 	        }
 	    }]);
 	
@@ -1619,69 +1617,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	            return _react2['default'].createElement(
 	                _reactBootstrap.Input,
-	                _extends({}, props, this._generateValidatorProps(), {
+	                _extends({}, props, this._getValidatorProps(), {
 	                    ref: 'input' }),
 	                this.props.children
 	            );
 	        }
 	    }, {
-	        key: '_generateValidatorProps',
-	        value: function _generateValidatorProps() {
-	            var eventName = this._getValidationEvent();
-	
-	            var _getDefaultValue2 = this._getDefaultValue();
-	
-	            var key = _getDefaultValue2.key;
-	            var value = _getDefaultValue2.value;
-	
-	            var _getValidation2 = this._getValidation();
-	
-	            var bsStyle = _getValidation2.bsStyle;
-	            var help = _getValidation2.help;
-	            var callback = this._getValidationCallback(eventName);
-	            var newProps = {
-	                validationEvent: eventName
-	            };
-	
-	            newProps[eventName] = callback;
-	
-	            if (value) {
-	                newProps[key] = value;
-	            }
-	
-	            if (bsStyle) {
-	                newProps.bsStyle = bsStyle;
-	            }
-	
-	            if (help) {
-	                newProps.help = help;
-	            }
-	
-	            return newProps;
-	        }
-	    }, {
-	        key: '_getValidationEvent',
-	        value: function _getValidationEvent() {
-	            return this.props.validationEvent ? this.props.validationEvent : this.context.Validator.validationEvent;
-	        }
-	    }, {
-	        key: '_getValidationCallback',
-	        value: function _getValidationCallback(eventName) {
-	            var _this = this;
-	
-	            var origCallback = this.props[eventName];
-	
-	            return function (event) {
-	                _this.context.Validator.validateInput(_this.props.name, _this.getValue());
-	
-	                return origCallback && origCallback(event);
-	            };
-	        }
-	    }, {
 	        key: '_getDefaultValue',
 	        value: function _getDefaultValue() {
 	            var key = 'defaultValue',
-	                value = this.context.Validator.getDefaultValue(this.props.name);
+	                value = this.context.Validator.getValue(this.props.name);
 	
 	            if (this.props.type === 'checkbox') {
 	                key = 'defaultChecked';
@@ -1707,6 +1652,48 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }
 	
 	            return { bsStyle: bsStyle, help: help };
+	        }
+	    }, {
+	        key: '_getValidatorProps',
+	        value: function _getValidatorProps() {
+	            var _this = this;
+	
+	            var eventName = this.props.validationEvent ? this.props.validationEvent : this.context.Validator.validationEvent;
+	
+	            var _getDefaultValue2 = this._getDefaultValue();
+	
+	            var key = _getDefaultValue2.key;
+	            var value = _getDefaultValue2.value;
+	
+	            var _getValidation2 = this._getValidation();
+	
+	            var bsStyle = _getValidation2.bsStyle;
+	            var help = _getValidation2.help;
+	            var callback = function callback(event) {
+	                _this.context.Validator.updateInput(_this.props.name, _this.getValue());
+	                _this.context.Validator.validateInput(_this.props.name);
+	
+	                return _this.props[eventName] && _this.props[eventName](event);
+	            };
+	            var newProps = {
+	                validationEvent: eventName
+	            };
+	
+	            newProps[eventName] = callback;
+	
+	            if (value) {
+	                newProps[key] = value;
+	            }
+	
+	            if (bsStyle) {
+	                newProps.bsStyle = bsStyle;
+	            }
+	
+	            if (help) {
+	                newProps.help = help;
+	            }
+	
+	            return newProps;
 	        }
 	    }]);
 	
