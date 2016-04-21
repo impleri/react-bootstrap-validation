@@ -5,5 +5,3 @@ node_modules
 .idea/
 .babel-cache/
 .coverage/
-dist/
-lib/
