@@ -27,7 +27,8 @@
   "license": "MIT",
   "homepage": "https://github.com/heilhead/react-bootstrap-validation",
   "peerDependencies": {
-    "react": ">=0.13"
+    "react": ">=0.14",
+    "react-dom": ">=0.14"
   },
   "devDependencies": {
     "babel": "^5.6.23",
@@ -46,8 +47,6 @@
     "babel-runtime": "^5.1.10",
     "classnames": "^2.0.0",
     "react-bootstrap": ">=0.26.0 <0.29.0",
-    "react": ">=0.14.0",
-    "react-dom": ">=0.14.0",
     "validator": "^3.41.3"
   }
 }
