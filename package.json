@@ -32,7 +32,7 @@
   "devDependencies": {
     "babel": "^5.6.23",
     "browserify": "10.x",
-    "gulp": "3.9.0",
+    "gulp": "^3.9.0",
     "gulp-babel": "^5.1.0",
     "gulp-rename": "^1.2.2",
     "gulp-sourcemaps": "^1.5.2",
@@ -45,7 +45,9 @@
   "dependencies": {
     "babel-runtime": "^5.1.10",
     "classnames": "^2.0.0",
-    "react-bootstrap": ">=0.23.0",
+    "react-bootstrap": ">=0.26.0 <0.29.0",
+    "react": ">=0.14.0",
+    "react-dom": ">=0.14.0",
     "validator": "^3.41.3"
   }
 }
